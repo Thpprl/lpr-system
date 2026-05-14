@@ -1,0 +1,235 @@
+================================================================================
+  ระบบอ่านป้ายทะเบียนรถยนต์อัตโนมัติ (License Plate Recognition System)
+================================================================================
+
+================================================================================
+1. ภาษา Python เวอร์ชันที่ใช้
+================================================================================
+
+  Python 3.10
+
+
+================================================================================
+2. ไลบรารีที่ใช้
+================================================================================
+
+  กลุ่ม Core / Deep Learning
+  --------------------------
+  - torch==2.1.2               : PyTorch สำหรับ inference โมเดล deep learning
+  - torchvision==0.16.2        : ส่วนเสริม vision สำหรับ PyTorch
+
+  กลุ่ม Vision / Image Processing
+  --------------------------------
+  - opencv-python              : อ่านและ crop ภาพจากกล้อง / ไฟล์รูป
+  - pillow                     : จัดการ PIL.Image ส่งให้โมเดล VLM
+  - numpy                      : คำนวณ array ภาพ
+
+  กลุ่ม YOLO (Object Detection)
+  ------------------------------
+  - ultralytics==8.3.0         : YOLOv8 ตรวจจับและ crop ตำแหน่งป้ายทะเบียน
+
+  กลุ่ม Utilities
+  ---------------
+  - tqdm                       : แสดง progress bar ในโหมด batch
+  - pandas                     : อ่าน/เขียน CSV สำหรับ evaluation
+  - rapidfuzz                  : คำนวณ Levenshtein distance (CER metric)
+
+
+================================================================================
+3. คำสั่งติดตั้งไลบรารีที่จำเป็น
+================================================================================
+
+  # ติดตั้งจาก requirements.txt (แนะนำ)
+  pip install -r requirements.txt
+
+  # หรือติดตั้งทีละตัว
+  pip install torch==2.1.2 torchvision==0.16.2
+  pip install transformers==4.46.2 peft==0.13.2 accelerate==0.30.1
+  pip install sentencepiece safetensors
+  pip install opencv-python pillow numpy
+  pip install ultralytics==8.3.0
+  pip install fastapi uvicorn python-multipart
+  pip install tqdm pandas rapidfuzz
+
+
+
+================================================================================
+4. โครงสร้างโฟลเดอร์ของโปรเจกต์
+================================================================================
+
+  lpr-system/
+  ├── run.py                        # จุดเริ่มต้นรันระบบ (single / batch mode)
+  ├── eval.py                       # สคริปต์ประเมินผลระบบ (Accuracy, CER)
+  ├── requirements.txt              # รายการ dependencies
+  ├── label.csv                     # ป้ายกำกับ (ground truth) สำหรับ evaluation
+  ├── eval_detail.csv               # ผลการประเมินรายภาพ
+  ├── eval_result.csv               # ผลการประเมินสรุป
+  │
+  ├── pipeline/                     # โมดูลหลักของ pipeline การประมวลผล
+  │   ├── pipeline.py               # ประสาน YOLO → Qwen → Postprocess
+  │   ├── batch.py                  # รันหลายภาพพร้อมกัน (batch mode)
+  │   │
+  │   ├── yolo/                     # โมดูลตรวจจับป้ายทะเบียน
+  │   │   ├── yolo_crops.py         # ใช้ YOLOv8 crop ป้ายทะเบียนจากภาพ
+  │   │   └── parser.py             # แปลงผล YOLO output
+  │   │
+  │   ├── qwen/                     # โมดูล OCR ด้วย VLM
+  │   │   └── qwen_infer.py         # inference Qwen3-VL-2B + LoRA → อ่านป้าย
+  │   │
+  │   ├── postprocess/              # โมดูลประมวลผลหลัง inference
+  │   │   ├── formatter.py          # จัดรูปแบบผลลัพธ์สำหรับแสดงผล
+  │   │   ├── parser.py             # แปลง text output เป็น dict
+  │   │   └── vehicle_type.py       # จำแนกประเภทรถจากสีป้ายทะเบียน
+  │   │
+  │   ├── utils/
+  │   │   └── saver.py              # บันทึกผลลัพธ์เป็น JSON / CSV
+  │   │
+  │   └── evaluation/               # โมดูลสำหรับประเมินผล
+  │
+  ├── models/                       # โมเดลที่ใช้งาน
+  │   ├── yolo/
+  │   │   └── best.pt               # YOLOv8 model (fine-tuned ตรวจป้ายทะเบียนไทย)
+  │   └── qwen/
+  │       └── checkpoint-400/       # LoRA adapter (fine-tuned Qwen3-VL-2B)
+  │
+  ├── output/                       # ผลลัพธ์จากการรันระบบ
+  │   ├── crops/                    # ภาพป้ายทะเบียนที่ crop แล้ว
+  │   ├── json/                     # ผลลัพธ์รูปแบบ JSON
+  │   └── csv/                      # ผลลัพธ์รูปแบบ CSV
+  │
+  ├── test/                         # ภาพทดสอบ
+  ├── assets/                       # ไฟล์ asset ต่างๆ
+  ├── compare/                      # ไฟล์เปรียบเทียบ ground truth
+  │   └── labels.csv
+  │
+  └── web/                          # Web UI
+      ├── static/                   # CSS, JS, Images
+      └── templates/                # HTML templates
+
+
+================================================================================
+5. ตัวอย่างคำสั่งสำหรับรันระบบ
+================================================================================
+
+  # รันภาพเดี่ยว (single mode)
+  python run.py single test/imgs (1).jpg
+
+  # รันภาพเดี่ยว พร้อมบันทึกผลลัพธ์ (JSON + CSV)
+  python run.py single test/imgs (1).jpg --save
+
+  # รันแบบ batch (โฟลเดอร์ทั้งหมด)
+  python run.py batch test/
+
+  # รันแบบ batch พร้อมบันทึกผลลัพธ์
+  python run.py batch test/ --save
+
+  # ประเมินผลระบบ (ต้องมีไฟล์ compare/labels.csv และ output/csv/results.csv)
+  python eval.py
+
+
+================================================================================
+6. ตัวอย่างโค้ดโปรแกรม
+================================================================================
+
+  ---- run.py (จุดเริ่มต้นรันระบบ) ----
+
+    import sys
+    from pipeline.pipeline import run_pipeline
+    from pipeline.batch import run_pipeline_batch
+    from pipeline.postprocess.formatter import format_lpr_result
+    from pipeline.utils.saver import save_json, save_csv
+
+    if __name__ == "__main__":
+        mode = sys.argv[1]  # "single" หรือ "batch"
+        path = sys.argv[2]  # path รูปภาพ หรือโฟลเดอร์
+        save = "--save" in sys.argv
+
+        if mode == "single":
+            result = run_pipeline(path)
+            print(format_lpr_result(result))
+            if save:
+                save_json(result)
+                save_csv(result)
+
+        elif mode == "batch":
+            results = run_pipeline_batch(path)
+            for r in results:
+                print(format_lpr_result(r))
+                if save:
+                    save_json(r)
+                    save_csv(r)
+
+
+  ---- pipeline/yolo/yolo_crops.py (ตรวจจับป้ายด้วย YOLOv8) ----
+
+    from ultralytics import YOLO
+    from pathlib import Path
+    import cv2
+
+    MODEL_PATH = "models/yolo/best.pt"
+    OUTPUT_DIR = Path("output/crops")
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    model = YOLO(MODEL_PATH)
+
+    def crop_plate(image_path: str) -> list[str]:
+        img = cv2.imread(image_path)
+        results = model(img)
+
+        saved_paths = []
+        for i, box in enumerate(results[0].boxes.xyxy):
+            x1, y1, x2, y2 = map(int, box)
+            crop = img[y1:y2, x1:x2]
+            out_path = OUTPUT_DIR / f"plate_{i}.jpg"
+            cv2.imwrite(str(out_path), crop)
+            saved_paths.append(str(out_path))
+
+        return saved_paths
+
+================================================================================
+7. ตัวอย่างผลการทดสอบระบบ
+================================================================================
+
+  ---- ผลการรัน single mode ----
+
+    $ python run.py single test/imgs (8).jpg
+
+    ✅ ผลการอ่านป้ายทะเบียน
+    ----------------------------------------
+    เลขทะเบียน  : ญพ 1755
+    จังหวัด      : กรุงเทพมหานคร
+    สีป้าย       : ขาว
+    สีตัวอักษร   : ดำ
+    ประเภทรถ    : รถยนต์นั่งส่วนบุคคลไม่เกิน 7 คน
+
+
+  ---- สรุปผลการประเมินระบบ (eval.py) จากชุดทดสอบ 50 ภาพ ----
+
+    ===== Evaluation Summary =====
+    Plate CER (avg)                   : 0.0893   (Character Error Rate เฉลี่ย ~8.93%)
+    Plate Accuracy                    : 0.56     (ถูกต้องสมบูรณ์ 56%)
+    Province Accuracy                 : 0.60     (จังหวัดถูกต้อง 60%)
+    Plate Color Accuracy              : 0.00     (สีป้าย: ยังมีปัญหา format ภาษา)
+    Text Color Accuracy               : 0.00     (สีตัวอักษร: ยังมีปัญหา format ภาษา)
+    Vehicle Type Accuracy (Canonical) : 0.02     (ประเภทรถ 2%)
+
+    หมายเหตุ: Plate Color / Text Color มีค่า 0 เนื่องจาก ground truth ใช้ภาษาอังกฤษ
+    (เช่น "White", "Black") ขณะที่โมเดลตอบเป็นภาษาไทย ("ขาว", "ดำ") 
+    ซึ่งจะถูกต้องเมื่อ normalize ก่อนเปรียบเทียบ
+
+
+  ---- ตัวอย่างผลรายภาพ (บางส่วน) ----
+
+    ภาพ                  | ป้าย (GT)    | ป้าย (Pred)  | CER   | จังหวัด (GT)     | จังหวัด (Pred)
+    ---------------------|--------------|--------------|-------|------------------|----------------
+    imgs (8).jpg         | ญพ 1755      | ญพ 1755      | 0.000 | กรุงเทพมหานคร    | กรุงเทพมหานคร
+    imgs (13).jpg        | กษ 5315      | กษ 5315      | 0.000 | สระบุรี          | พระนครศรีอยุธยา
+    imgs (19).jpg        | 4กอ 1038     | 4กอ 1038     | 0.000 | กรุงเทพมหานคร    | กรุงเทพมหานคร
+    imgs (23).jpg        | งล 4957      | งล 4957      | 0.000 | ชลบุรี           | ชลบุรี
+    imgs (28).jpg        | กบ 4181      | กบ 4181      | 0.000 | เชียงราย         | เชียงราย
+    imgs (10).jpg        | ญผ 1755      | ญพ 1755      | 0.143 | กรุงเทพมหานคร    | กรุงเทพมหานคร
+    imgs (6).jpg         | ภพ 9865      | ฒผ 9865      | 0.286 | กรุงเทพมหานคร    | กรุงเทพมหานคร
+    imgs (7).jpg         | 1 ขข 6256    | 1ขบ6256      | 0.333 | กรุงเทพมหานคร    | พระนครศรีอยุธยา
+
+
+================================================================================
