@@ -5,22 +5,10 @@
 [![Ultralytics YOLOv8](https://img.shields.co/badge/YOLO-v8.3.0-blueviolet.svg)](https://github.com/ultralytics/ultralytics)
 [![HuggingFace](https://img.shields.co/badge/%F0%9F%A4%97-Transformers-yellow.svg)](https://huggingface.co/)
 [![PEFT/LoRA](https://img.shields.co/badge/PEFT-LoRA-lightgrey.svg)](https://github.com/huggingface/peft)
-[![FastAPI](https://img.shields.co/badge/FastAPI-0.100%2B-009688.svg)](https://fastapi.tiangolo.com/)
 
 A state-of-the-art, dual-stage **Thai License Plate Recognition (LPR)** system. This project merges **YOLOv8 Object Detection** for localization with a **fine-tuned Qwen-VL Vision-Language Model (VLM)** via **LoRA (PEFT)** for high-precision OCR extraction of Thai script, numbers, provinces, and plate colors. 
 
-Includes both a CLI tool (supporting single and batch operations with automated evaluations) and a modern, responsive Web UI dashboard.
-
----
-
-## 📸 Web UI Dashboard
-The system features an interactive, dark-themed Web UI dashboard. Users can drag-and-drop vehicle images to instantly crop the license plate and view parsed extraction details side-by-side.
-
-*To launch the Web UI, run:*
-```bash
-python run.py web
-```
-And navigate to `http://127.0.0.1:8000`.
+Includes a CLI tool (supporting single and batch operations with automated evaluations) and a performance benchmarking suite.
 
 ---
 
@@ -51,12 +39,10 @@ The pipeline processes input images through a specialized modular framework:
    │  Process  │     (Maps Plate + Text color to legal categories)
    └───────────┘
          │
-         ├──────────────────────────┐
-         ▼                          ▼
- ┌──────────────┐            ┌──────────────┐
- │   CLI Output │            │  Web Browser │
- │ (JSON / CSV) │            │ (Interactive)│
- └──────────────┘            └──────────────┘
+         ▼
+ ┌──────────────┐
+ │   CLI Output │ ──► Print format / JSON / CSV File
+ └──────────────┘
 ```
 
 ---
@@ -66,9 +52,7 @@ The pipeline processes input images through a specialized modular framework:
 - **License Plate Localization (YOLOv8):** Detects Thai license plates and crops them for processing.
 - **Multimodal OCR (Qwen-VL-2B-Instruct + LoRA):** A vision-language model fine-tuned on Thai plates to extract textual information and identify plate colors directly.
 - **Color-to-Vehicle Type Mapping:** Post-processing module that classifies vehicles into legal Thai classes (e.g., *Private Car*, *Public Taxi*, *Government Vehicle*) using background and text color rules.
-- **Dual Interface:**
-  - **Interactive Web Interface:** Modern, drag-and-drop upload workspace.
-  - **Developer Command Line (CLI):** Modes for `single` image analysis or folder-based `batch` processing.
+- **Developer Command Line (CLI):** Modes for `single` image analysis or folder-based `batch` processing.
 - **Performance Evaluation Suite:** Script to automatically measure Character Error Rate (CER) and accuracy metrics across ground truth data.
 
 ---
@@ -77,7 +61,7 @@ The pipeline processes input images through a specialized modular framework:
 
 ```
 lpr-system/
-├── run.py                 # Main entry point (single / batch / web modes)
+├── run.py                 # Main entry point (single / batch modes)
 ├── eval.py                # System evaluation script (CER & Accuracy)
 ├── requirements.txt       # Dependencies list
 ├── pipeline/              # Core processing logic
@@ -90,10 +74,6 @@ lpr-system/
 ├── models/                # Local model storage (ignored in git)
 │   ├── yolo/best.pt       # Fine-tuned YOLOv8 weights
 │   └── qwen/checkpoint-400/  # LoRA adapters for Qwen-VL-2B-Instruct
-├── web/                   # Web application
-│   ├── app.py             # FastAPI backend server
-│   ├── templates/         # HTML templates (index.html)
-│   └── static/            # CSS styles and JavaScript handlers
 ├── test/                  # Test scripts and datasets
 └── output/                # Processed crop outputs, JSON, and CSV records
 ```
@@ -138,17 +118,7 @@ Make sure the models are placed in the correct directories:
 
 ## 💻 Usage Guide
 
-### Mode 1: Interactive Web Dashboard
-Run the FastAPI web server:
-```bash
-python run.py web
-```
-The server will start at **`http://127.0.0.1:8000`**. Open this link in your browser to upload and analyze images. Optional port customization:
-```bash
-python run.py web --port 5000
-```
-
-### Mode 2: Single Image CLI
+### Mode 1: Single Image CLI
 Run predictions on a single vehicle image:
 ```bash
 python run.py single path/to/image.jpg
@@ -158,13 +128,13 @@ Save predictions to `output/json/` and `output/csv/`:
 python run.py single path/to/image.jpg --save
 ```
 
-### Mode 3: Batch Directory CLI
+### Mode 2: Batch Directory CLI
 Run predictions on a folder containing multiple vehicle images:
 ```bash
 python run.py batch path/to/images_folder/ --save
 ```
 
-### Mode 4: Pipeline Evaluation
+### Mode 3: Pipeline Evaluation
 To evaluate system performance, place a ground-truth labels sheet in `compare/labels.csv` and run:
 ```bash
 python eval.py
