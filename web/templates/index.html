@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thai LPR System - AI License Plate Recognition</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Style CSS -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="glass-bg"></div>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo-area">
+                <span class="pulse-dot"></span>
+                <h1>Thai LPR System</h1>
+            </div>
+            <p class="subtitle">AI-Powered Thai License Plate Detection & VLM OCR Engine</p>
+        </header>
+
+        <!-- Main Workspace -->
+        <main class="workspace">
+            <!-- Left Side: Upload & Control Panel -->
+            <section class="panel upload-panel">
+                <div class="panel-header">
+                    <h2>Upload Vehicle Image</h2>
+                    <p>Select or drag and drop a vehicle image file</p>
+                </div>
+                
+                <div class="dropzone" id="dropzone">
+                    <input type="file" id="file-input" accept="image/png, image/jpeg, image/jpg" hidden>
+                    <div class="dropzone-prompt">
+                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M7 16V4M7 4L3 8M7 4L11 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M21 12C21 16.9706 16.9706 21 12 21C9.69109 21 7.59109 20.1343 6 18.7183" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <p class="main-prompt">Drag & Drop image here</p>
+                        <p class="sub-prompt">Supports PNG, JPG, JPEG</p>
+                        <button class="btn btn-primary" id="browse-btn">Browse Files</button>
+                    </div>
+                    <div class="preview-container" id="preview-container" hidden>
+                        <img id="image-preview" src="#" alt="Upload Preview">
+                        <button class="btn-clear" id="btn-clear" title="Remove image">&times;</button>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button class="btn btn-success w-full" id="analyze-btn" disabled>
+                        <span>Analyze Image</span>
+                        <div class="spinner" id="spinner" hidden></div>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Right Side: Results Panel -->
+            <section class="panel results-panel" id="results-panel">
+                <div class="panel-header">
+                    <h2>Analysis Results</h2>
+                    <p>Processed pipeline data will appear here</p>
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-state" id="empty-state">
+                    <svg class="placeholder-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M9 12H15M9 16H13M17 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3H12.5858C12.851 3 13.1054 3.10536 13.2929 3.29289L18.7071 8.70711C18.8946 8.89464 19 9.149 19 9.41421V19C19 20.1046 18.1046 21 17 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <p>No results yet. Upload and analyze an image to start.</p>
+                </div>
+
+                <!-- Error Alert -->
+                <div class="error-alert" id="error-alert" hidden>
+                    <span class="error-msg"></span>
+                </div>
+
+                <!-- Results Display (Initially Hidden) -->
+                <div class="results-display" id="results-display" hidden>
+                    <!-- Visual Reference Row -->
+                    <div class="visuals-row">
+                        <div class="cropped-plate-box">
+                            <span class="box-label">Cropped License Plate</span>
+                            <div class="crop-img-container">
+                                <img id="plate-crop" src="#" alt="Cropped Plate">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Metadata Grid -->
+                    <div class="metadata-grid">
+                        <div class="meta-card">
+                            <span class="meta-label">License Plate Number</span>
+                            <span class="meta-value th-text" id="res-plate-number">-</span>
+                        </div>
+                        <div class="meta-card">
+                            <span class="meta-label">Province</span>
+                            <span class="meta-value th-text" id="res-province">-</span>
+                        </div>
+                        <div class="meta-card">
+                            <span class="meta-label">Plate Color</span>
+                            <span class="meta-value th-text" id="res-plate-color">-</span>
+                        </div>
+                        <div class="meta-card">
+                            <span class="meta-label">Text Color</span>
+                            <span class="meta-value th-text" id="res-text-color">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Highlighted Vehicle Type Section -->
+                    <div class="vehicle-type-section">
+                        <div class="type-header">
+                            <svg class="car-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M19 17H5C3.89543 17 3 16.1046 3 15V11L4.85694 7.28612C5.17642 6.64716 5.82902 6.24138 6.54322 6.24138H17.4568C18.171 6.24138 18.8236 6.64716 19.1431 7.28612L21 11V15C21 16.1046 20.1046 17 19 17Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="7" cy="17" r="2" stroke="currentColor" stroke-width="2"/>
+                                <circle cx="17" cy="17" r="2" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            <h3>Classified Vehicle Type</h3>
+                        </div>
+                        <p class="vehicle-type-value th-text" id="res-vehicle-type">-</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>Developed with YOLOv8 & Qwen-VL (LoRA fine-tuned). Optimized for Thai License Plates.</p>
+        </footer>
+    </div>
+
+    <!-- Script JS -->
+    <script src="/static/script.js"></script>
+</body>
+</html>

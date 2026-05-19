@@ -33,3 +33,13 @@ compare/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Local developer notes/docs
+lprSystem.txt
+lprSystem_qwen.txt
+
+# Test datasets and test images
+test/test_images/
+test/test_images.zip
+
+
