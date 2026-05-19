@@ -10,42 +10,7 @@ A state-of-the-art, dual-stage **Thai License Plate Recognition (LPR)** system. 
 
 Includes a CLI tool (supporting single and batch operations with automated evaluations) and a performance benchmarking suite.
 
----
 
-## 🛠️ System Architecture
-
-The pipeline processes input images through a specialized modular framework:
-
-```
-[Input Vehicle Image]
-         │
-         ▼
-   ┌───────────┐
-   │  YOLOv8   │ ──► Object Detection & Localization
-   └───────────┘
-         │
-         ▼
-[Cropped Plate Crop]
-         │
-         ▼
-   ┌───────────┐
-   │  Qwen-VL  │ ──► Fine-tuned VLM (via LoRA Adapter)
-   │  VLM OCR  │     Extracts: Plate Text, Province, Colors
-   └───────────┘
-         │
-         ▼
-   ┌───────────┐
-   │  Post-    │ ──► Rule-based Vehicle Type Classifier
-   │  Process  │     (Maps Plate + Text color to legal categories)
-   └───────────┘
-         │
-         ▼
- ┌──────────────┐
- │   CLI Output │ ──► Print format / JSON / CSV File
- └──────────────┘
-```
-
----
 
 ## ✨ Features
 
@@ -155,7 +120,4 @@ Below is an evaluation summary evaluated across a 50-image test set:
 | **Plate & Text Colors Recognition** | **100.00%** | Normalized matching accuracy |
 | **Canonical Vehicle Type Classification**| **100.00%** | Color mapping post-processed accuracy |
 
----
 
-## ⚖️ License
-Distributed under the MIT License. See `LICENSE` for details.
